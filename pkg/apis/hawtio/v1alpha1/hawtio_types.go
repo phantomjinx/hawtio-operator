@@ -25,6 +25,7 @@ const (
 )
 
 // +kubebuilder:object:root=true
+// +kubebuilder:deprecatedversion:warning="v1alpha1.Hawtio is deprecated, please, use v1.Hawtio instead"
 // +kubebuilder:resource:path=hawtios,scope=Namespaced,categories=hawtio
 // +kubebuilder:subresource:status
 // +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas,selectorpath=.status.selector
@@ -32,7 +33,6 @@ const (
 // +kubebuilder:printcolumn:name="Image",type=string,JSONPath=`.status.image`,description="Console image"
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`,description="Console phase"
 // +kubebuilder:printcolumn:name="URL",type=string,JSONPath=`.status.URL`,description="Console URL"
-
 // Hawtio Console
 type Hawtio struct {
 	metav1.TypeMeta   `json:",inline"`

@@ -4,17 +4,19 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/hawtio/hawtio-operator/pkg/controller/hawtio"
+	"os"
+	"runtime"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
-	"os"
-	"runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
+
+	"github.com/hawtio/hawtio-operator/pkg/controller/hawtio"
 
 	"github.com/operator-framework/operator-lib/leader"
 

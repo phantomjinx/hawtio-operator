@@ -19,7 +19,7 @@ CONTROLLER_GEN_VERSION := v0.6.1
 KUSTOMIZE_VERSION := v4.5.4
 OPERATOR_SDK_VERSION := v1.28.0
 
-CRD_OPTIONS ?= crd:crdVersions=v1,preserveUnknownFields=false
+CRD_OPTIONS ?= crd,preserveUnknownFields=false
 
 INSTALL_ROOT := deploy
 GEN_SUFFIX := gen.yaml
