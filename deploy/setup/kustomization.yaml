@@ -1,7 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: hawtio
+namespace: hawtio-dev
 
 resources:
 - ../crd
@@ -11,3 +11,7 @@ resources:
 - ../role_binding.yaml
 - ../service_account.yaml
 - role_app_user.yaml
+images:
+- name: quay.io/hawtio/operator
+  newName: quay.io/phantomjinx/hawtio-operator
+  newTag: 1.3.0-7-202511101115
