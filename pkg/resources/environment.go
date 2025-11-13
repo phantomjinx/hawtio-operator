@@ -143,6 +143,7 @@ func envVarsForHawtio(hawtio *hawtiov2.Hawtio, apiSpec *capabilities.ApiServerSp
 }
 
 func envVarsForHawtioOCP4(openShiftVersion string, openShiftConsoleURL string) []corev1.EnvVar {
+	fmt.Println(" XXX ADDING VERSION AS " + openShiftVersion)
 	envVars := []corev1.EnvVar{
 		{
 			Name:  OpenShiftClusterVersionEnvVar,

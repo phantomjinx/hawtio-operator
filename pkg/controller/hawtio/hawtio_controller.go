@@ -53,7 +53,7 @@ var log = logf.Log.WithName("controller_hawtio")
 
 const (
 	hawtioFinalizer         = "hawt.io/finalizer"
-	hostGeneratedAnnotation = "openshift.io/host.generated"
+	HawtioUnderTestEnvVar   = "HAWTIO_UNDER_TEST"
 )
 
 // Add creates a new Hawtio Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -107,8 +107,10 @@ func Add(mgr manager.Manager, bv util.BuildVariables) error {
 		return errs.Wrap(err, "Cluster API capability discovery failed")
 	}
 
-	if err := openshift.ConsoleYAMLSampleExists(); err == nil {
-		openshift.CreateConsoleYAMLSamples(context.TODO(), mgr.GetClient(), r.ProductName)
+	if r.apiSpec.IsOpenShift4 {
+		if err := openshift.ConsoleYAMLSampleExists(); err == nil {
+			openshift.CreateConsoleYAMLSamples(context.TODO(), mgr.GetClient(), r.ProductName)
+		}
 	}
 
 	return add(mgr, r, r.apiSpec.Routes)
@@ -120,8 +122,18 @@ func enqueueRequestForOwner[T client.Object](mgr manager.Manager) handler.TypedE
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler, routeSupport bool) error {
+	// Need to skip name registry validation if
+	// the controller is being run through test suites
+	skipValidation := false
+	if os.Getenv(HawtioUnderTestEnvVar) == "true" {
+    skipValidation = true
+  }
+
 	// Create a new controller
-	c, err := controller.New("hawtio-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New("hawtio-controller", mgr, controller.Options{
+		Reconciler: r,
+		SkipNameValidation: &skipValidation,
+	})
 	if err != nil {
 		return errs.Wrap(err, "Failed to create new controller")
 	}
@@ -259,9 +271,11 @@ func (r *ReconcileHawtio) Reconcile(ctx context.Context, request reconcile.Reque
 
 	// Aid deletion by adding finalizer
 	r.logger.V(util.DebugLogLevel).Info("=== Add Finalizer ===")
-	err = r.addFinalizer(ctx, hawtio)
+	updated, err := r.addFinalizer(ctx, hawtio)
 	if err != nil {
 		return reconcile.Result{}, err
+	} else if updated {
+		return reconcile.Result{Requeue: true}, err
 	}
 
 	// =====================================================================
@@ -510,31 +524,33 @@ func (r *ReconcileHawtio) deletion(ctx context.Context, hawtio *hawtiov2.Hawtio)
 		return nil
 	}
 
-	if hawtio.Spec.Type == hawtiov2.ClusterHawtioDeploymentType {
-		// Remove URI from OAuth client
-		oc := &oauthv1.OAuthClient{}
-		err := r.client.Get(ctx, types.NamespacedName{Name: resources.OAuthClientName}, oc)
-		if err != nil && !kerrors.IsNotFound(err) {
-			return fmt.Errorf("failed to get OAuth client: %v", err)
-		}
-		updated := resources.RemoveRedirectURIFromOauthClient(oc, hawtio.Status.URL)
-		if updated {
-			err := r.client.Update(ctx, oc)
-			if err != nil {
-				return fmt.Errorf("failed to remove redirect URI from OAuth client: %v", err)
+	if r.apiSpec.IsOpenShift4 {
+		if hawtio.Spec.Type == hawtiov2.ClusterHawtioDeploymentType {
+			// Remove URI from OAuth client
+			oc := &oauthv1.OAuthClient{}
+			err := r.client.Get(ctx, types.NamespacedName{Name: resources.OAuthClientName}, oc)
+			if err != nil && !kerrors.IsNotFound(err) {
+				return fmt.Errorf("failed to get OAuth client: %v", err)
+			}
+			updated := resources.RemoveRedirectURIFromOauthClient(oc, hawtio.Status.URL)
+			if updated {
+				err := r.client.Update(ctx, oc)
+				if err != nil {
+					return fmt.Errorf("failed to remove redirect URI from OAuth client: %v", err)
+				}
 			}
 		}
-	}
 
-	// Remove OpenShift console link
-	consoleLink := &consolev1.ConsoleLink{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: hawtio.ObjectMeta.Name + "-" + hawtio.ObjectMeta.Namespace,
-		},
-	}
-	err := r.client.Delete(ctx, consoleLink)
-	if err != nil && !kerrors.IsNotFound(err) && !meta.IsNoMatchError(err) {
-		return fmt.Errorf("failed to delete console link: %v", err)
+		// Remove OpenShift console link
+		consoleLink := &consolev1.ConsoleLink{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: hawtio.ObjectMeta.Name + "-" + hawtio.ObjectMeta.Namespace,
+			},
+		}
+		err := r.client.Delete(ctx, consoleLink)
+		if err != nil && !kerrors.IsNotFound(err) && !meta.IsNoMatchError(err) {
+			return fmt.Errorf("failed to delete console link: %v", err)
+		}
 	}
 
 	// Check if the finalizer is still present before trying to remove it
@@ -554,12 +570,14 @@ func (r *ReconcileHawtio) deletion(ctx context.Context, hawtio *hawtiov2.Hawtio)
 	return nil
 }
 
-func (r *ReconcileHawtio) addFinalizer(ctx context.Context, hawtio *hawtiov2.Hawtio) error {
+func (r *ReconcileHawtio) addFinalizer(ctx context.Context, hawtio *hawtiov2.Hawtio) (bool, error) {
 	// Add a finalizer, that's needed to clean up cluster-wide resources, like ConsoleLink and OAuthClient
-	r.logger.V(util.DebugLogLevel).Info("Adding a finalizer")
 	if controllerutil.ContainsFinalizer(hawtio, hawtioFinalizer) {
-		return nil
+		r.logger.V(util.DebugLogLevel).Info("Finalizer already present")
+		return false, nil // nothing to do
 	}
+
+	r.logger.V(util.DebugLogLevel).Info("Adding a finalizer")
 
 	previous := hawtio.DeepCopy()
 	controllerutil.AddFinalizer(hawtio, hawtioFinalizer)
@@ -569,10 +587,12 @@ func (r *ReconcileHawtio) addFinalizer(ctx context.Context, hawtio *hawtiov2.Haw
 	// overwriting with a stale hawtio CR
 	err := r.client.Patch(ctx, hawtio, client.MergeFrom(previous))
 	if err != nil {
-		return fmt.Errorf("failed to update finalizer: %v", err)
+		r.logger.V(util.DebugLogLevel).Info("Error finalizer")
+		return false, fmt.Errorf("failed to update finalizer: %v", err)
 	}
 
-	return nil
+	r.logger.V(util.DebugLogLevel).Info("Completed finalizer")
+	return true, nil
 }
 
 func (r *ReconcileHawtio) verifyHawtioSpecType(ctx context.Context, hawtio *hawtiov2.Hawtio) (bool, error) {
@@ -634,6 +654,8 @@ func (r *ReconcileHawtio) verifyRBACConfigMap(ctx context.Context, hawtio *hawti
 }
 
 func (r *ReconcileHawtio) setHawtioPhase(ctx context.Context, hawtio *hawtiov2.Hawtio, phase hawtiov2.HawtioPhase) error {
+	r.logger.V(util.DebugLogLevel).Info("Setting Hawtio CR Phase:", "Phase", phase)
+
 	if hawtio.Status.Phase != phase {
 		previous := hawtio.DeepCopy()
 		hawtio.Status.Phase = phase
@@ -804,7 +826,8 @@ func (r *ReconcileHawtio) reconcileService(ctx context.Context, hawtio *hawtiov2
 }
 
 func (r *ReconcileHawtio) reconcileRoute(ctx context.Context, hawtio *hawtiov2.Hawtio, deploymentConfig DeploymentConfiguration) (*routev1.Route, controllerutil.OperationResult, error) {
-	if ! r.apiSpec.Routes {
+	// Only create a route if confirmed as Openshift and supports routes
+	if ! r.apiSpec.IsOpenShift4 || ! r.apiSpec.Routes {
 		return nil, controllerutil.OperationResultNone, nil
 	}
 
@@ -813,7 +836,7 @@ func (r *ReconcileHawtio) reconcileRoute(ctx context.Context, hawtio *hawtiov2.H
 
 	if err == nil {
 		// A route was found. Now, apply the special condition check.
-		isGenerated := strings.EqualFold(existingRoute.Annotations[hostGeneratedAnnotation], "true")
+		isGenerated := strings.EqualFold(existingRoute.Annotations[oresources.RouteHostGeneratedAnnotation], "true")
 
 		if hawtio.Spec.RouteHostName == "" && !isGenerated {
 			// The user cleared the hostname, and the current route is not auto-generated.
@@ -866,7 +889,8 @@ func (r *ReconcileHawtio) reconcileRoute(ctx context.Context, hawtio *hawtiov2.H
 }
 
 func (r *ReconcileHawtio) reconcileIngress(ctx context.Context, hawtio *hawtiov2.Hawtio, deploymentConfig DeploymentConfiguration) (*networkingv1.Ingress, controllerutil.OperationResult, error) {
-	if r.apiSpec.Routes {
+	// Only create an ingress if confirmed as not a route version of Openshift
+	if r.apiSpec.IsOpenShift4 && r.apiSpec.Routes {
 		return nil, controllerutil.OperationResultNone, nil
 	}
 

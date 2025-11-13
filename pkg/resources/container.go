@@ -230,6 +230,7 @@ func newHawtioEnvVars(hawtio *hawtiov2.Hawtio, apiSpec *capabilities.ApiServerSp
 	envVars = append(envVars, envVarsForHawtio...)
 
 	if apiSpec.IsOpenShift4 {
+		fmt.Println("VERSION FROM API SPEC: " + apiSpec.Version)
 		envVarsForOpenShift4 := envVarsForHawtioOCP4(apiSpec.Version, openShiftConsoleURL)
 		envVars = append(envVars, envVarsForOpenShift4...)
 	}

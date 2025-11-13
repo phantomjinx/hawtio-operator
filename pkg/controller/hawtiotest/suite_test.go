@@ -1,9 +1,10 @@
 //go:build integration
 
-package hawtio
+package hawtiotest
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -26,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/hawtio/hawtio-operator/pkg/capabilities"
+	configv1 "github.com/openshift/api/config/v1"
 	configclient "github.com/openshift/client-go/config/clientset/versioned"
 	oauthclient "github.com/openshift/client-go/oauth/clientset/versioned"
 	kclient "k8s.io/client-go/kubernetes"
@@ -49,23 +51,31 @@ type TestTools struct {
 
 var testTools *TestTools
 
-// TestAPIs registers the testing suite with 'go test'.
-func TestAPIs(t *testing.T) {
+// TestIntegrationController registers the testing suite with 'go test'.
+func TestIntegrationController(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Controller Suite")
 }
 
 // BeforeSuite runs once before any tests in the suite.
 var _ = BeforeSuite(func() {
+	// Ensure the controller is placed under test mode
+	os.Setenv("HAWTIO_UNDER_TEST", "true")
+
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
 	// Use a context that can be cancelled
-	ctx, cancel := context.WithCancel(context.TODO())
+	ctx, cancel := context.WithCancel(context.Background())
 
 	By("bootstrapping test environment")
 	testEnv := &envtest.Environment{
 		// CRDDirectoryPaths tells envtest where to find your CRD YAMLs
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "..", "deploy", "crd")},
+		CRDDirectoryPaths: []string{
+			filepath.Join("..", "..", "..", "deploy", "crd"),
+
+			// Point directly to the OpenShift CRDs in your vendor dir
+			filepath.Join("testdata", "crds"),
+		},
 		ErrorIfCRDPathMissing: true,
 		DownloadBinaryAssets:  true,
 	}
@@ -90,6 +100,9 @@ var _ = BeforeSuite(func() {
 	err = apiextensionsv1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
+	err = configv1.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
+
 	// Create the Kubernetes client for interacting with the test environment.
 	k8sClient, err := client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
@@ -97,6 +110,8 @@ var _ = BeforeSuite(func() {
 
 	apiClient, err := kclient.NewForConfig(cfg)
 	Expect(err).NotTo(HaveOccurred())
+
+	coreClient := apiClient.CoreV1()
 
 	oauthClient, err := oauthclient.NewForConfig(cfg)
 	Expect(err).NotTo(HaveOccurred())
@@ -118,7 +133,7 @@ var _ = BeforeSuite(func() {
 		cancel:       cancel,
 		cfg:          cfg,
 		configClient: configClient,
-		coreClient:   apiClient.CoreV1(),
+		coreClient:   coreClient,
 		ctx:          ctx,
 		k8sClient:    k8sClient,
 		logger:       logger,
@@ -129,10 +144,11 @@ var _ = BeforeSuite(func() {
 
 // AfterSuite runs once after all tests in the suite have finished.
 var _ = AfterSuite(func() {
-	// Cancel the context
-	testTools.cancel()
+	By("stopping the manager")
+	testTools.cancel() // Signal the manager's goroutine to stop
 
 	By("tearing down the test environment")
+	// Now it's safe to stop the API server
 	err := testTools.testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
 })

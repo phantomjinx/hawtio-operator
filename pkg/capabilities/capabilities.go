@@ -108,14 +108,23 @@ func APICapabilities(ctx context.Context, apiClient kclient.Interface, configCli
 		}
 	}
 
+	fmt.Println("XXX CLUSTER VERSION")
+	fmt.Println(clusterVersion)
+
 	if apiSpec.IsOpenShift4 && clusterVersion != nil {
+		fmt.Println("XXX LOOKING IN STATUS HISTORY")
+		fmt.Println(clusterVersion.Status.History)
 		// Let's take the latest version from the history
 		for _, update := range clusterVersion.Status.History {
+			fmt.Println("XXX FOUND UPDATE")
 			if update.State == configv1.CompletedUpdate {
+				fmt.Println("XXX FOUND COMPLETED UPDATE")
+				fmt.Println(update)
 				// Obtain the version from the last completed update
 				// Update the api spec version
 				var openShiftSemVer *semver.Version
 				openShiftSemVer, err = semver.NewVersion(update.Version)
+				fmt.Println(openShiftSemVer)
 				if err != nil {
 					return nil, errs.Wrap(err, fmt.Sprintf("Error parsing OpenShift cluster semantic version %s", update.Version))
 				}

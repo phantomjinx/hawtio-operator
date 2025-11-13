@@ -1,0 +1,94 @@
+h1. Hawtio (Standalone)
+|*Upstream Repository*|[https://github.com/hawtio/hawtio]|
+|*Source Branch*|[4.x|https://github.com/hawtio/hawtio/tree/4.x-redhat]|
+|*Version*|4.3.0|
+|*Productization Version*|4.3.0.redhat_00008-1|
+|*Maven Version*|4.3.0.redhat-00008|
+|*Brew Tag*|hawtio-4.3-pnc-candidate|
+|*Build URL*|[https://brewweb.engineering.redhat.com/brew/buildinfo?buildID=3888176]|
+|*Artifact Types*|pom, jar, war, gz|
+|*Maven Repository*|[https://download.hosts.prod.upshift.rdu2.redhat.com/rcm-guest/staging/rhaf/hawtio-4.3.0.GA/rhaf-hawtio-4.3.0.GA-maven-repository.zip]|
+|*Licenses*|[https://download.hosts.prod.upshift.rdu2.redhat.com/rcm-guest/staging/rhaf/hawtio-4.3.0.GA/rhaf-hawtio-4.3.0.GA-license.zip]|
+|*Sources*|[https://download.hosts.prod.upshift.rdu2.redhat.com/rcm-guest/staging/rhaf/hawtio-4.3.0.GA/rhaf-hawtio-4.3.0.GA-src.zip]|
+|*PNC Build*|[BLDIBWPYQLAAA|https://orch.pnc.engineering.redhat.com/pnc-web/builds/BLDIBWPYQLAAA]
+|*@hawtio/react*|[1.11.2-redhat-00001|https://orch.pnc.engineering.redhat.com/pnc-web/artifacts/14632593]|
+|*jolokia.js*|[2.4.0-redhat-00001|https://orch.pnc.engineering.redhat.com/pnc-web/artifacts/14572229]|
+
+h1. Hawtio Online
+h2. Hawtio Online Container
+|*Upstream Repository*|[https://github.com/hawtio/hawtio-online]|
+|*Source Branch*|[2.x-redhat|https://github.com/hawtio/hawtio-online/tree/2.x-redhat]|
+|*Version*|2.3.0|
+|*Product Name*|hawtio-container-2.3.0-9|
+|*Productization Version*|2.3.0-9|
+|*Tag*|2.3.0-9|
+|*Image Ref*|_registry-proxy.engineering.redhat.com/rh-osbs/rhbac-4-hawtio-rhel9:2.3.0-9_|
+|*Brew Tag*|hawtio-2.3-rhel-9-container-candidate|
+|*Build URL*|[https://brewweb.engineering.redhat.com/brew/buildinfo?buildID=3888505]|
+|*Artifact Types*|container-image|
+|*PNC hawtio-online*|[2.3.0.redhat-00010|https://orch.pnc.engineering.redhat.com/pnc-web/builds/BLDIBYU4QLAAA/artifacts]|
+|*@hawtio/artemis-console-plugin*|[1.3.0-redhat-00002|https://orch.pnc.engineering.redhat.com/pnc-web/artifacts/14632618]|
+|*@hawtio/react*|[1.11.2-redhat-00001|https://orch.pnc.engineering.redhat.com/pnc-web/artifacts/14632593]|
+|*jolokia.js*|[2.4.0-redhat-00001|https://orch.pnc.engineering.redhat.com/pnc-web/artifacts/14572229]|
+|{color:red}*Verified About Box* (1){color}| Artemis 1.3.0-redhat-00002
+Hawtio Online 2.3.0.redhat-00010
+Hawtio React 1.11.2-redhat-00001|
+
+h2. Hawtio Online Gateway Container
+|*Upstream Repository*|[https://github.com/hawtio/hawtio-online]|
+|*Source Branch*|[2.x-redhat|https://github.com/hawtio/hawtio-online/tree/2.x-redhat]|
+|*Version*|2.3.0|
+|*Product Name*|hawtio-gateway-container-2.3.0-9|
+|*Productization Version*|2.3.0-9|
+|*Tag*|2.3.0-9|
+|*Image Ref*|_registry-proxy.engineering.redhat.com/rh-osbs/rhbac-4-hawtio-gateway-rhel9:2.3.0-9_|
+|*Brew Tag*|hawtio-2.3-rhel-9-container-candidate|
+|*Build URL*|[https://brewweb.engineering.redhat.com/brew/buildinfo?buildID=3888503]|
+|*Artifact Types*|container-image|
+
+h2. Hawtio Operator Container
+|*Upstream Repository*|[https://github.com/hawtio/hawtio-operator]|
+|*Source Branch*|[1.x|https://github.com/hawtio/hawtio-operator/tree/1.x-redhat]|
+|*Version*|1.3.0|
+|*Product Name*|hawtio-operator-container-1.3.0-8|
+|*Productization Version*|1.3.0-8|
+|*Tag*|1.3.0-8|
+|*Image Ref*|_registry-proxy.engineering.redhat.com/rh-osbs/rhbac-4-hawtio-rhel9-operator:1.3.0-8_|
+|*Brew Tag*|hawtio-2.3-rhel-9-container-candidate|
+|*Build URL*|[https://brewweb.engineering.redhat.com/brew/buildinfo?buildID=3888205]|
+|*Artifact Types*|container-image|
+|{color:red}*Verified Hawtio-Online Target* (2){color}|* Hawtio Online Image Repository: registry.redhat.io/rhbac-4/hawtio-rhel9
+* Hawtio Online Image Version: 2.3.0
+* Hawtio Online Gateway Image Repository: registry.redhat.io/rhbac-4/hawtio-gateway-rhel9
+* Hawtio Online Gateway Image Version: 2.3.0|
+
+h2. Hawtio Operator Metadata Bundle Container
+|*Upstream Repository*|[https://github.com/hawtio/hawtio-operator]|
+|*Source Branch*|[1.x|https://github.com/hawtio/hawtio-operator/tree/1.x-redhat]|
+|*Version*|1.3.0|
+|*Product Name*|hawtio-operator-bundle-container-1.3.0-8|
+|*Productization Version*|1.3.0-8|
+|*Tag*|1.3.0-8|
+|*Image Ref*|_registry-proxy.engineering.redhat.com/rh-osbs/rhbac-4-hawtio-operator-bundle:1.3.0-8_|
+|*Brew Tag*|hawtio-2.3-rhel-9-container-candidate|
+|*Build URL*|[https://brewweb.engineering.redhat.com/brew/buildinfo?buildID=3888547]|
+|*Artifact Types*|container-image|
+|{color:red}*Verified CSV Name* (3){color}|red-hat-hawtio-operator.v1.3.0|
+|{color:red}*Verified CSV Version* (3){color}|1.3.0|
+|{color:red}*Verified Operator Target Version* (3){color}|[registry.redhat.io/rhbac-4/hawtio-rhel9-operator@sha256:2319b92b16fd57e1d059ff352b158d50d0ed006b1c8684d1cbfb5f243a93987d|https://brewweb.engineering.redhat.com/brew/buildinfo?buildID=3888205]|
+|{color:red}*Verified Replaces Version* (3){color}|red-hat-hawtio-operator.v{color:red}X.Y.Z{color}|
+|{color:red}*Verified Skip Version (if applicable)* (3){color}|red-hat-hawtio-operator.v{color:red}X.Y.Z{color}|
+|{color:red}*Verified Related Images Version* (3){color}|[registry.redhat.io/rhbac-4/hawtio-rhel9-operator@sha256:2319b92b16fd57e1d059ff352b158d50d0ed006b1c8684d1cbfb5f243a93987d|https://brewweb.engineering.redhat.com/brew/buildinfo?buildID=3888205]|
+
+h2. [CVP|https://jenkins-cvp-5e8c8f7ebed8bd66f83caf66.apps.agogos.x13g.p1.openshiftapps.com] Verification of Builds
+|{color:red}*Verified Hawtio Container* (4){color}|{color:red}<unverified>{color}|
+|{color:red}*Verified Hawtio Gateway Container* (4){color}|{color:red}<unverified>{color}|
+|{color:red}*Verified Hawtio Operator Container* (4){color}|{color:red}<unverified>{color}|
+|{color:red}*Verified Hawtio Operator Bundle Container* (4){color}|{color:red}<unverified>{color}|
+
+----
+
+* (1) Verify by installing and executing the app then displaying the About box
+* (2) Verify by installing the operator and looking at its container log
+* (3) Verify by pulling down bundle image and look at its CSV file??
+* (4) Verify by looking at sent emails from CVP pipelines

@@ -21,7 +21,7 @@ CI_BUILD ?= false
 ifeq ($(CI_BUILD),true)
 TEST_FLAGS :=
 else
-TEST_FLAGS := -tags=integration
+TEST_FLAGS := -tags=integration -ginkgo.v
 endif
 
 # Drop suffix for use with bundle and CSV
