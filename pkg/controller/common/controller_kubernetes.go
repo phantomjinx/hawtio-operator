@@ -30,8 +30,9 @@ func getRotationBufferWindow(hawtio commonapi.HawtioGeneral) time.Duration {
 
 func KubeCreateServingCertificate(ctx context.Context, r *ReconcileBase, hawtio commonapi.HawtioGeneral) (*corev1.Secret, time.Duration, error) {
 	// This secret name should be the same as used in deployment.go
+	serviceName := resources.ServiceNameFromHawtio(hawtio)
+	servingSecretName := resources.ServingSecretName(serviceName)
 	metadataInfo := hawtio.GetMetadataInfo()
-	servingSecretName := metadataInfo.Name + "-tls-serving"
 	rotationWindow := getRotationBufferWindow(hawtio)
 
 	// Check whether serving certificate secret exists

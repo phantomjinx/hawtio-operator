@@ -18,7 +18,7 @@ import (
 func NewDefaultService(hawtio *hawtiov2.Hawtio) *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      hawtio.Name,
+			Name:      common.ServiceNameFromHawtio(hawtio),
 			Namespace: hawtio.Namespace,
 		},
 	}
@@ -28,9 +28,12 @@ func NewService(hawtio *hawtiov2.Hawtio, apiSpec *capabilities.ApiServerSpec, lo
 	log.V(util.DebugLogLevel).Info("Reconciling service")
 
 	name := hawtio.Name
+	serviceName := common.ServiceNameFromHawtio(hawtio)
+	servingSecretName := common.ServingSecretName(serviceName)
 
-	annotations := map[string]string{
-		"service.beta.openshift.io/serving-cert-secret-name": name + "-tls-serving",
+	annotations := map[string]string{}
+	if util.IsSSL(hawtio, apiSpec) {
+		annotations["service.beta.openshift.io/serving-cert-secret-name"] = servingSecretName
 	}
 	common.PropagateAnnotations(hawtio, annotations, log)
 
