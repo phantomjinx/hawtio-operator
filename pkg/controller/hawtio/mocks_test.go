@@ -14,7 +14,7 @@ func initHawtio(includeSSL int) *hawtiov2.Hawtio {
 
 	hawtio.ObjectMeta = metav1.ObjectMeta{
 		Name:      hawtioCRName,
-		Namespace: "hawtio-online-ns",
+		Namespace: hawtioCRNamespace,
 		Annotations: map[string]string{
 			"hawtio.io/last-modified-by": "user",
 		},
@@ -60,6 +60,7 @@ func initHawtio(includeSSL int) *hawtiov2.Hawtio {
 }
 
 var hawtioCRName = "hawtio-online-test"
+var hawtioCRNamespace = "hawtio-online-ns"
 
 // SSL never specified so property is null
 var defaultHawtio = initHawtio(-1)

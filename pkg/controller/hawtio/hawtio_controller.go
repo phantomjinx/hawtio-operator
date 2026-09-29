@@ -226,6 +226,16 @@ func (r *ReconcileHawtio) Reconcile(ctx context.Context, request reconcile.Reque
 
 	crNamespacedName := request.NamespacedName
 
+	//
+	// Establish the owner of the operator
+	// Used for the ownership of the proxy certificate
+	//
+	operatorOwner, err := r.GetOperatorOwner(ctx)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+	r.Logger.V(util.DebugLogLevel).Info(fmt.Sprintf("Determine operator owner: %s", operatorOwner.GetName()))
+
 	// =====================================================================
 	// PHASE 1: SETUP & FETCH
 	// =====================================================================
@@ -307,7 +317,7 @@ func (r *ReconcileHawtio) Reconcile(ctx context.Context, request reconcile.Reque
 
 	// Resolve the master client proxy certificate (if applicable)
 	r.Logger.V(util.DebugLogLevel).Info("=== Resolving Master Client Certificate ===")
-	masterClientSecret, nextMasterCertCheckIn, err := r.resolveMasterClientCertificate(ctx, hawtio)
+	masterClientSecret, nextMasterCertCheckIn, err := r.ResolveMasterClientCertificate(ctx, hawtio, MasterClientSecretName, operatorOwner)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
