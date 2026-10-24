@@ -270,7 +270,21 @@ func (r *ReconcileHawtioPlugin) Reconcile(ctx context.Context, request ctrl.Requ
 	//   * ConsolePlugin: hawtio-online-console-plugin
 	//
 
-	// TODO - resources
+	// Reconcile the deployment resource
+	r.Logger.V(util.DebugLogLevel).Info("=== Reconciling Plugin Deployment ===")
+	opResult, err = r.reconcilePluginDeployment(ctx, hawtioPlugin)
+	r.LogOperationResult("Plugin Deployment", opResult)
+	if err != nil {
+		return commonctrl.HandleResultAndError(err)
+	}
+
+	// Reconcile the service resource
+	r.Logger.V(util.DebugLogLevel).Info("=== Reconciling Plugin Service ===")
+	opResult, err = r.reconcilePluginService(ctx, hawtioPlugin)
+	r.LogOperationResult("Plugin Service", opResult)
+	if err != nil {
+		return commonctrl.HandleResultAndError(err)
+	}
 
 	// =====================================================================
 	// PHASE 5: UPDATE PHASE
