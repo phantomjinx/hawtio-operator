@@ -18,8 +18,6 @@ import (
 )
 
 const (
-	deploymentSSLPort = 9443
-
 	// Serving Certificate
 	serviceSigningSecretVolumeName = "hawtio-online-console-plugin-serving"
 )
@@ -215,7 +213,7 @@ func newContainer(hawtioPlugin *hawtiopluginv1.HawtioPlugin, bv util.BuildVariab
 		Ports: []corev1.ContainerPort{
 			{
 				Name:          commonres.ContainerPortName,
-				ContainerPort: deploymentSSLPort,
+				ContainerPort: pluginSSLPort,
 				Protocol:      "TCP",
 			},
 		},

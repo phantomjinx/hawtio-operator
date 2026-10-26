@@ -2,12 +2,18 @@ package hawtioplugin
 
 import (
 	"context"
+	"fmt"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	osv1 "github.com/openshift/api/console/v1"
+
 	hawtiov2 "github.com/hawtio/hawtio-operator/pkg/apis/hawtio/v2"
 	hawtiopluginv1 "github.com/hawtio/hawtio-operator/pkg/apis/hawtioplugin/v1"
+
+	commonctrl "github.com/hawtio/hawtio-operator/pkg/controller/common"
+	pluginres "github.com/hawtio/hawtio-operator/pkg/resources/hawtioplugin/plugin"
 
 	"github.com/hawtio/hawtio-operator/pkg/util"
 )
@@ -90,4 +96,59 @@ func (r *ReconcileHawtioPlugin) createHawtioPlugin(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (r *ReconcileHawtioPlugin) reconcileConsolePlugin(ctx context.Context, hawtioPlugin *hawtiopluginv1.HawtioPlugin) (controllerutil.OperationResult, error) {
+	namespace := r.OperatorPod.Namespace
+
+	// The object the K8s client fetches into, and ultimately saves.
+	targetConsolePlugin := pluginres.NewDefaultConsolePlugin()
+	reqLogger := r.Logger.WithName(fmt.Sprintf("%s-reconcilePluginResource", targetConsolePlugin.Name))
+
+	opResult, err := controllerutil.CreateOrUpdate(ctx, r.Client, targetConsolePlugin, func() error {
+		// A read-only copy of the cluster state for diff logging
+		liveSnapshot := targetConsolePlugin.DeepCopy()
+
+		// Set the owner reference for garbage collection
+		if err := controllerutil.SetControllerReference(hawtioPlugin, targetConsolePlugin, r.Scheme); err != nil {
+			return err
+		}
+
+		// Local, ideal state generated from the Hawtio CR
+		blueprint, err := pluginres.NewConsolePlugin(hawtioPlugin, namespace, r.BuildVariables, reqLogger)
+		if err != nil {
+			reqLogger.Error(err, "Error reconciling console plugin")
+			return err
+		}
+
+		serverBlueprint, err := commonctrl.HydrateDefaults(ctx, r.Client, blueprint, func(source, hydrated *osv1.ConsolePlugin) {})
+		if err != nil {
+			return err
+		}
+
+		targetConsolePlugin.Labels = util.MergeMap(targetConsolePlugin.Labels, blueprint.Labels)
+		targetConsolePlugin.Annotations = util.MergeMap(targetConsolePlugin.Annotations, blueprint.Annotations)
+		// Assign the fully hydrated and patched blueprint spec
+		targetConsolePlugin.Spec = serverBlueprint.Spec
+
+		// Report any known differences to the log (only if in debug log level)
+		util.ReportDiff("Console Plugin", liveSnapshot, targetConsolePlugin)
+
+		return nil
+	})
+
+	// There is a resource but the default client cache cannot see it
+	// since it is legacy and not labelled. The create failed so it
+	// should be adopted and reconciled.
+	if err != nil && kerrors.IsAlreadyExists(err) {
+		adoptionErr := r.AdoptLegacyResource(ctx, pluginres.NewDefaultConsolePlugin())
+		if adoptionErr != nil {
+			// If adoption failed (e.g., API error) or an adoption was called
+			// return any of these errors
+			return controllerutil.OperationResultNone, adoptionErr
+		}
+	}
+
+	util.ReportResourceChange("Console Plugin", targetConsolePlugin, opResult)
+	return opResult, err
 }

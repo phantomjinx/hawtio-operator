@@ -50,13 +50,15 @@
     verbs: ["create", "update", "patch"]
 
 # Required for creating, modifying, deleting
-# console links and console yaml samples
+# console links and console yaml samples.
+#
+# Required for OpenShift Console Plugin API
 #
 - op: add
   path: /rules/-
   value:
     apiGroups: ["console.openshift.io"]
-    resources: ["consolelinks", "consoleyamlsamples"]
+    resources: ["consolelinks", "consoleplugins", "consoleyamlsamples"]
     verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
 
 # Required for creating, modifying oauthclient

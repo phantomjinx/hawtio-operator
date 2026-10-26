@@ -286,6 +286,14 @@ func (r *ReconcileHawtioPlugin) Reconcile(ctx context.Context, request ctrl.Requ
 		return commonctrl.HandleResultAndError(err)
 	}
 
+	// Reconcile the plugin resource
+	r.Logger.V(util.DebugLogLevel).Info("=== Reconciling Plugin Console Plugin ===")
+	opResult, err = r.reconcileConsolePlugin(ctx, hawtioPlugin)
+	r.LogOperationResult("Plugin Console Plugin", opResult)
+	if err != nil {
+		return commonctrl.HandleResultAndError(err)
+	}
+
 	// =====================================================================
 	// PHASE 5: UPDATE PHASE
 	// =====================================================================

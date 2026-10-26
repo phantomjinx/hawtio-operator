@@ -72,9 +72,9 @@ func NewService(hawtioPlugin *hawtiopluginv1.HawtioPlugin, namespace string, bui
 	service.Spec = corev1.ServiceSpec{
 		Ports: []corev1.ServicePort{
 			{
-				Name:       fmt.Sprintf("%d-tcp", deploymentSSLPort),
+				Name:       fmt.Sprintf("%d-tcp", pluginSSLPort),
 				Protocol:   "TCP",
-				Port:       int32(deploymentSSLPort),
+				Port:       int32(pluginSSLPort),
 				TargetPort: intstr.FromString(commonres.ContainerPortName),
 			},
 		},
