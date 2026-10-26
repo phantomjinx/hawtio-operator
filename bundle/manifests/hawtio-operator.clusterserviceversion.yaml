@@ -68,6 +68,7 @@ metadata:
               "clientCertExpirationPeriod": 24,
               "internalSSL": true
             },
+            "enableHawtioPlugin": true,
             "healthChecks": {
               "gatewayLivenessPeriod": 120,
               "gatewayReadinessPeriod": 30,
@@ -99,7 +100,7 @@ metadata:
     categories: Integration & Delivery
     certified: "false"
     containerImage: quay.io/hawtio/operator:2.1.0
-    createdAt: "2026-09-10T14:00:51Z"
+    createdAt: "2026-10-26T19:19:23Z"
     description: Hawtio eases the discovery and management of Java applications deployed
       on OpenShift.
     olm.skipRange: '>=1.0.0 <2.0.1'
@@ -113,7 +114,7 @@ metadata:
     operatorframework.io/arch.s390x: supported
     operatorframework.io/os.linux: supported
     operatorframework.io/os.zos: supported
-  name: hawtio-operator.v2.0.0
+  name: hawtio-operator.v2.1.0
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
@@ -286,6 +287,7 @@ spec:
           - console.openshift.io
           resources:
           - consolelinks
+          - consoleplugins
           - consoleyamlsamples
           verbs:
           - create
@@ -343,7 +345,7 @@ spec:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
                   value: hawtio-operator
-                image: quay.io/hawtio/operator:2.0.0
+                image: quay.io/hawtio/operator:2.1.0
                 imagePullPolicy: Always
                 name: hawtio-operator
                 ports:
@@ -358,6 +360,10 @@ spec:
                   requests:
                     cpu: 250m
                     memory: 100Mi
+                volumeMounts:
+                - mountPath: /tmp/k8s-webhook-server/serving-certs
+                  name: webhook-certs
+                  readOnly: true
               serviceAccountName: hawtio-operator
               volumes:
               - name: webhook-certs
