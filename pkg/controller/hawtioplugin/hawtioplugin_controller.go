@@ -2,6 +2,7 @@ package hawtioplugin
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -196,11 +197,14 @@ func (r *ReconcileHawtioPlugin) Reconcile(ctx context.Context, request ctrl.Requ
 	r.Logger.V(util.DebugLogLevel).Info("=== Resolving Plugin Console Client Certificate ===")
 	masterClientSecret, nextMasterCertCheckIn, err := r.ResolveMasterClientCertificate(ctx, hawtioPlugin, MasterClientSecretName, hawtioPlugin)
 	if err != nil {
-		return reconcile.Result{}, err
+		return commonctrl.HandleResultAndError(err)
 	}
-	if masterClientSecret != nil {
-		r.Logger.V(util.DebugLogLevel).Info("Plugin Console Client Certificate", "secret", masterClientSecret.Name, "next check-in", nextMasterCertCheckIn.String())
+	if masterClientSecret == nil {
+		err := errors.New("master client certificate secret should be initialized")
+		return commonctrl.HandleResultAndError(err)
 	}
+
+	r.Logger.V(util.DebugLogLevel).Info("Plugin Console Client Certificate", "secret", masterClientSecret.Name, "next check-in", nextMasterCertCheckIn.String())
 
 	//
 	// - If the rbac ConfigMap was invalid then fail (not found is ok)
@@ -224,22 +228,46 @@ func (r *ReconcileHawtioPlugin) Reconcile(ctx context.Context, request ctrl.Requ
 	r.Logger.V(util.DebugLogLevel).Info("=== Reconciling Service Account ===")
 	opResult, err := r.reconcileServiceAccount(ctx, hawtioPlugin)
 	r.LogOperationResult("ServiceAccount", opResult)
-	if err == nil {
+	if err != nil {
 		return commonctrl.HandleResultAndError(err)
 	}
 
-	//2
-	// - Plugin
-	//   * ConsolePlugin: hawtio-online-console-plugin
-	//   * Service: hawtio-online-console-plugin
-	//   * Deployment: hawtio-online-console-plugin
-	//   * service certificate secret generated from annotation in Service
+	// Intialize the deployment inputs required for the deployment resources
+	// * proxy certificate
+	r.Logger.V(util.DebugLogLevel).Info("=== Initializing Deployment Configuration ===")
+	deploymentConfig, err := r.initDeploymentConfiguration(ctx, hawtioPlugin, masterClientSecret.Name, nextMasterCertCheckIn)
+	if err != nil {
+		return commonctrl.HandleResultAndError(err)
+	}
+
 	//
 	// - Gateway
-	//   * ConfigMap: hawtio-online-console-plugin-rbac
 	//   * Deployment: hawtio-online-console-plugin-gateway
 	//   * Service: hawtio-online-console-plugin-gateway (service certificate)
-	//   * Route: hawtio-online-console-plugin-gateway
+	//	   - service certificate secret generated from annotation in Service
+	//
+
+	// Reconcile the deployment resource
+	r.Logger.V(util.DebugLogLevel).Info("=== Reconciling Gateway Deployment ===")
+	opResult, err = r.reconcileGatewayDeployment(ctx, hawtioPlugin, deploymentConfig)
+	r.LogOperationResult("Gateway Deployment", opResult)
+	if err != nil {
+		return commonctrl.HandleResultAndError(err)
+	}
+
+	// Reconcile the service resource
+	r.Logger.V(util.DebugLogLevel).Info("=== Reconciling Gateway Service ===")
+	opResult, err = r.reconcileGatewayService(ctx, hawtioPlugin)
+	r.LogOperationResult("Gateway Service", opResult)
+	if err != nil {
+		return commonctrl.HandleResultAndError(err)
+	}
+
+	// - Plugin
+	//   * Deployment: hawtio-online-console-plugin
+	//   * Service: hawtio-online-console-plugin
+	//     - service certificate secret generated from annotation in Service
+	//   * ConsolePlugin: hawtio-online-console-plugin
 	//
 
 	// TODO - resources
