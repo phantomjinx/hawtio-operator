@@ -3,9 +3,12 @@ package hawtioplugin
 import (
 	"context"
 	"fmt"
+	"time"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	hawtiopluginv1 "github.com/hawtio/hawtio-operator/pkg/apis/hawtioplugin/v1"
 	"github.com/hawtio/hawtio-operator/pkg/cfg"
@@ -141,4 +144,40 @@ func (r *ReconcileHawtioPlugin) reconcilePluginDeployment(ctx context.Context, h
 
 	util.ReportResourceChange("Plugin Deployment", targetDeployment, opResult)
 	return opResult, err
+}
+
+func (r *ReconcileHawtioPlugin) awaitDeployment(ctx context.Context, name, namespace string) (*appsv1.Deployment, reconcile.Result, error) {
+	deployment := &appsv1.Deployment{}
+	err := r.Client.Get(ctx,
+		types.NamespacedName{Name: name, Namespace: namespace}, deployment)
+
+	if err != nil && kerrors.IsNotFound(err) {
+		r.Logger.V(util.DebugLogLevel).Info(
+			"Deployment not found, requeuing", "deployment", name)
+		// Requeue after 10ms to avoid thrashing
+		return nil, reconcile.Result{RequeueAfter: 10 * time.Millisecond}, nil
+	} else if err != nil {
+		r.Logger.Error(err, "Failed to get deployment", "deployment", name)
+		return nil, reconcile.Result{}, err
+	}
+
+	return deployment, reconcile.Result{}, nil
+}
+
+func (r *ReconcileHawtioPlugin) awaitDeployments(ctx context.Context) (map[string]*appsv1.Deployment, reconcile.Result, error) {
+	pluginDeployment, result, err := r.awaitDeployment(ctx, gatewayres.GatewayName, r.OperatorPod.Namespace)
+	if pluginDeployment == nil {
+		return nil, result, err
+	}
+
+	gatewayDeployment, result, err := r.awaitDeployment(ctx, pluginres.PluginName, r.OperatorPod.Namespace)
+	if gatewayDeployment == nil {
+		return nil, result, err
+	}
+
+	deployments := make(map[string]*appsv1.Deployment)
+	deployments[pluginres.PluginName] = pluginDeployment
+	deployments[gatewayres.GatewayName] = gatewayDeployment
+
+	return deployments, reconcile.Result{}, nil
 }
