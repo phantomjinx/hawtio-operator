@@ -15,6 +15,28 @@ rules:
   resources: ["secrets"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 
+# Required for management of the hawtio-online plugin
+# resources to be removed when plugin is disabled
+# Confined to deletion of resources in operator's namespace
+#
+- apiGroups: [""]
+  resources: ["configmaps", "serviceaccounts", "services"]
+  verbs: ["delete"]
+
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["delete"]
+
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["delete"]
+
+- apiGroups: ["route.openshift.io"]
+  resources: ["routes"]
+  verbs: ["delete"]
+
+# Required for determining owner of the operator
+#
 - apiGroups: ["apps"]
   resources: ["replicasets"]
   verbs: ["get", "list"]

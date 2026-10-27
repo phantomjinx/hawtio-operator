@@ -83,6 +83,17 @@ func (r *ReconcileHawtioPlugin) fetchHawtioPlugin(ctx context.Context) (*hawtiop
 	return &hawtioPlugin, nil
 }
 
+func (r *ReconcileHawtioPlugin) setHawtioPluginAnnotations(ctx context.Context, hawtioPlugin *hawtiopluginv1.HawtioPlugin) (controllerutil.OperationResult, error) {
+	return controllerutil.CreateOrUpdate(ctx, r.Client, hawtioPlugin, func() error {
+		annotations := map[string]string{
+			"hawt.io/managed-by":  "hawtio-operator",
+			"hawt.io/description": "Managed resource - controlled by Hawtio CRs with enableHawtioPlugin=true",
+		}
+		hawtioPlugin.Annotations = util.MergeMap(hawtioPlugin.Annotations, annotations)
+		return nil
+	})
+}
+
 func (r *ReconcileHawtioPlugin) createHawtioPlugin(ctx context.Context) error {
 	hawtioPlugin := hawtiopluginv1.NewHawtioPlugin(HawtioPluginName)
 

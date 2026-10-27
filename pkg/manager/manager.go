@@ -352,6 +352,11 @@ func New(mgrOptions ...MgrOption) (manager.Manager, error) {
 		})
 	}
 
+	if err := indexResourcesByOwner(mgr, apiSpec); err != nil {
+		log.Error(err, "Indexing of resources failed.")
+		return nil, err
+	}
+
 	var extraOptions []remote.Option
 	if mc.registryTransport != nil {
 		extraOptions = append(extraOptions, remote.WithTransport(mc.registryTransport))
@@ -397,6 +402,41 @@ func New(mgrOptions ...MgrOption) (manager.Manager, error) {
 	}
 
 	return mgr, nil
+}
+
+func indexResourcesByOwner(mgr manager.Manager, apiSpec *capabilities.ApiServerSpec) error {
+	resources := []client.Object{
+		&corev1.Service{},
+		&corev1.Secret{},
+		&corev1.ConfigMap{},
+		&corev1.ServiceAccount{},
+		&appsv1.Deployment{},
+	}
+
+	if apiSpec.IsOpenShift4 {
+		resources = append(resources, &routev1.Route{})
+		resources = append(resources, &consolev1.ConsolePlugin{})
+	} else {
+		resources = append(resources, &networkingv1.Ingress{})
+	}
+
+	indexFunc := func(rawObj client.Object) []string {
+		var ownerUIDs []string
+		for _, ref := range rawObj.GetOwnerReferences() {
+			ownerUIDs = append(ownerUIDs, string(ref.UID))
+		}
+		return ownerUIDs
+	}
+
+	for _, resource := range resources {
+		log.V(util.DebugLogLevel).Info("Indexing resource type by owner references", "type", resource)
+		// Register index on each target resource kind (e.g., Services, Secrets)
+		if err := mgr.GetFieldIndexer().IndexField(context.Background(), resource, "metadata.ownerReferences.uid", indexFunc); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func createUpdatePoller(ctx context.Context, cfg PollerConfig) (*updater.RegistryPoller, chan event.GenericEvent, error) {

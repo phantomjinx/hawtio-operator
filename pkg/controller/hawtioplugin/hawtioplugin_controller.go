@@ -17,6 +17,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -125,49 +126,95 @@ func (r *ReconcileHawtioPlugin) Reconcile(ctx context.Context, request ctrl.Requ
 	}
 
 	// =====================================================================
-	// PHASE 2: SETUP: FETCH HAWTIOPLUGIN CR
+	// PHASE 2a: SETUP: FETCH HAWTIOPLUGIN CR
 	// =====================================================================
 	//
 	// Find the HawtioPlugin CR if one exists
-	// - If exists then validate the configuration
-	// - If not then create a new default one and requeue
 	//
-	// Fetch the Hawtio instance from the cluster.
 	r.Logger.V(util.DebugLogLevel).Info("=== Fetching Hawtio Plugin Custom Resource ===")
 	hawtioPlugin, err := r.fetchHawtioPlugin(ctx)
 	if err != nil {
 		return reconcile.Result{}, err
-	} else if hawtioPlugin == nil {
-		// HawtioPlugin CR not found so create a new one
-		err := r.createHawtioPlugin(ctx)
-		// Requeue to re-evaluate
+	}
+
+	// =====================================================================
+	// PHASE 2b: DELETION / CREATION / FINALIZER
+	// =====================================================================
+	//
+	// - Remove all resources if hawtio plugin explicity requested for removal
+	//
+	delete, err := r.handleDeletion(ctx, hawtioPlugin)
+	if err != nil {
+		return reconcile.Result{}, err
+	} else if delete {
+		return reconcile.Result{}, nil
+	}
+
+	//
+	// Handle CR recreation if necessary
+	//
+	if hawtioPlugin == nil {
+		if shouldEnablePlugin {
+			// HawtioPlugin CR not found but needed so create a new one
+			r.Logger.Info("Creating Default HawtioPlugin CR")
+			err := r.createHawtioPlugin(ctx)
+			// Requeue to re-evaluate - watching should pick up the new HawtioPlugin CR
+			return reconcile.Result{}, err
+		}
+
+		// Plugin not needed and CR missing - nothing to do
+		r.Logger.V(util.DebugLogLevel).Info("HawtioPlugin not needed and CR does not exist")
+		return reconcile.Result{}, nil
+	}
+
+	// hawtioPlugin should exist, either as a default or user-defined CR
+
+	//
+	// Aid deletion by adding finalizer
+	//
+	r.Logger.V(util.DebugLogLevel).Info("=== Add Finalizer to Hawtio Plugin ===")
+	updated, err := r.addFinalizer(ctx, hawtioPlugin)
+	if err != nil {
+		return reconcile.Result{}, err
+	} else if updated {
 		return reconcile.Result{Requeue: true}, err
 	}
 
-	hawtioPluginStatus := createStatusWithImages(r.BuildVariables)
+	//
+	// Check and add annotations to hawtio plugin CR
+	//
+	opResult, err := r.setHawtioPluginAnnotations(ctx, hawtioPlugin)
+	if err != nil {
+		return reconcile.Result{}, err
+	} else if opResult != controllerutil.OperationResultNone {
+		r.Logger.Info("HawtioPlugin modified", "result", opResult)
+		// Requeue to re-evaluate - watching should pick up the HawtioPlugin CR change
+		return reconcile.Result{}, nil
+	}
 
-	// hawtioPlugin should exist, either as a default or user-defined CR
+	//
+	// Add the image properties to the hawtio plugin status
+	//
+	hawtioPluginStatus := createStatusWithImages(r.BuildVariables)
 
 	if !shouldEnablePlugin {
 		r.Logger.Info("Hawtio Console Plugin not required - disabling")
 		//
 		// No hawtio CR enablement at this time
 		//
-		// - Remove all resources
-		//   * Delete all resources in reverse order using r.Delete
-		//   * No need to requeue inbetween except if there is an error
-		//   * Ignore NotFound errors:
-		//     if err := r.Delete(ctx, service); client.IgnoreNotFound(err) != nil {
+
+		err := r.removeInstall(ctx, hawtioPlugin)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+
 		//
-
-		// TODO
-
 		// - Change HawtioPlugin phase to Disabled
 		// - Complete
 		//
 		r.Logger.V(util.DebugLogLevel).Info("Setting HawtioPlugin phase to Disabled")
 		hawtioPluginStatus.Phase = hawtiopluginv1.PluginPhaseDisabled
-		err := r.setPluginStatus(ctx, hawtioPlugin, hawtioPluginStatus)
+		err = r.setPluginStatus(ctx, hawtioPlugin, hawtioPluginStatus)
 		return reconcile.Result{}, err
 	}
 
@@ -227,7 +274,7 @@ func (r *ReconcileHawtioPlugin) Reconcile(ctx context.Context, request ctrl.Requ
 
 	// Reconcile the service account
 	r.Logger.V(util.DebugLogLevel).Info("=== Reconciling Service Account ===")
-	opResult, err := r.reconcileServiceAccount(ctx, hawtioPlugin)
+	opResult, err = r.reconcileServiceAccount(ctx, hawtioPlugin)
 	r.LogOperationResult("ServiceAccount", opResult)
 	if err != nil {
 		return commonctrl.HandleResultAndError(err)
