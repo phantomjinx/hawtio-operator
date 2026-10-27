@@ -8,7 +8,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labelUtils "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	hawtiopluginv1 "github.com/hawtio/hawtio-operator/pkg/apis/hawtioplugin/v1"
@@ -44,32 +43,6 @@ func NewDeployment(hawtioPlugin *hawtiopluginv1.HawtioPlugin, namespace string, 
 	return newDeployment(hawtioPlugin, namespace, buildVariables, podTemplateSpec, log)
 }
 
-func deploymentLabels(buildVariables util.BuildVariables) (map[string]string, error) {
-	additionalLabels, err := labelUtils.ConvertSelectorToLabelsMap(buildVariables.AdditionalLabels)
-	if err != nil {
-		return nil, err
-	}
-
-	/*
-	 * labels:
-	 *   app: hawtio
-	 * 	 deployment: hawtio-online-console-plugin
-	 *   app.kubernetes.io/component: hawtio-online-console-plugin
-	 *   app.kubernetes.io/instance: hawtio-online-console-plugin
-	 *   app.kubernetes.io/part-of: hawtio
-	 */
-	labels := commonres.LabelsForHawtio(pluginName)
-	labels["app.kubernetes.io/component"] = pluginName
-	labels["app.kubernetes.io/instance"] = pluginName
-	labels["app.kubernetes.io/part-of"] = commonres.LabelAppValue
-
-	for name, value := range additionalLabels {
-		labels[name] = value
-	}
-
-	return labels, nil
-}
-
 func newDeployment(hawtioPlugin *hawtiopluginv1.HawtioPlugin, namespace string, buildVariables util.BuildVariables, pts corev1.PodTemplateSpec, log logr.Logger) (*appsv1.Deployment, error) {
 	log.V(util.DebugLogLevel).Info("New deployment")
 
@@ -103,7 +76,7 @@ func newDeployment(hawtioPlugin *hawtiopluginv1.HawtioPlugin, namespace string, 
 	annotations := map[string]string{}
 	commonres.PropagateAnnotations(hawtioPlugin, annotations, log)
 
-	labels, err := deploymentLabels(buildVariables)
+	labels, err := pluginres.ResourceLabels(PluginName, buildVariables)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +107,7 @@ func newPodTemplateSpec(hawtioPlugin *hawtiopluginv1.HawtioPlugin, buildVariable
 
 	pluginContainer := newContainer(hawtioPlugin, buildVariables, log)
 
-	labels, err := deploymentLabels(buildVariables)
+	labels, err := pluginres.ResourceLabels(PluginName, buildVariables)
 	if err != nil {
 		return corev1.PodTemplateSpec{}, err
 	}

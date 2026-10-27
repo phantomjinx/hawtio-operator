@@ -58,7 +58,7 @@ func (r *ReconcileHawtioPlugin) reconcileServiceAccount(ctx context.Context, haw
 		}
 
 		reqLogger := r.Logger.WithName(fmt.Sprintf("%s-reconcileServiceAccount", hawtioPlugin.Name))
-		crServiceAccount, err := pluginres.NewServiceAccount(namespace, hawtioPlugin, reqLogger)
+		crServiceAccount, err := pluginres.NewServiceAccount(namespace, hawtioPlugin, r.BuildVariables, reqLogger)
 		if err != nil {
 			return err
 		}

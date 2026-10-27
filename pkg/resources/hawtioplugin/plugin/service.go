@@ -11,6 +11,7 @@ import (
 
 	hawtiopluginv1 "github.com/hawtio/hawtio-operator/pkg/apis/hawtioplugin/v1"
 	commonres "github.com/hawtio/hawtio-operator/pkg/resources/common"
+	pluginres "github.com/hawtio/hawtio-operator/pkg/resources/hawtioplugin"
 	"github.com/hawtio/hawtio-operator/pkg/util"
 )
 
@@ -23,7 +24,7 @@ func NewDefaultService(namespace string) *corev1.Service {
 	}
 }
 
-func NewService(hawtioPlugin *hawtiopluginv1.HawtioPlugin, namespace string, log logr.Logger) *corev1.Service {
+func NewService(hawtioPlugin *hawtiopluginv1.HawtioPlugin, namespace string, buildVariables util.BuildVariables, log logr.Logger) (*corev1.Service, error) {
 	log.V(util.DebugLogLevel).Info("Reconciling service")
 
 	/*
@@ -46,10 +47,10 @@ func NewService(hawtioPlugin *hawtiopluginv1.HawtioPlugin, namespace string, log
 	 *   app.kubernetes.io/instance: hawtio-online-console-plugin
 	 *   app.kubernetes.io/part-of: hawtio
 	 */
-	labels := commonres.LabelsForHawtio(PluginName)
-	labels["app.kubernetes.io/component"] = PluginName
-	labels["app.kubernetes.io/instance"] = PluginName
-	labels["app.kubernetes.io/part-of"] = commonres.LabelAppValue
+	labels, err := pluginres.ResourceLabels(PluginName, buildVariables)
+	if err != nil {
+		return nil, err
+	}
 	commonres.PropagateLabels(hawtioPlugin, labels, log)
 
 	/*
@@ -86,5 +87,5 @@ func NewService(hawtioPlugin *hawtiopluginv1.HawtioPlugin, namespace string, log
 	}
 
 	log.V(util.DebugLogLevel).Info(fmt.Sprintf("New service %s", util.ToJSONString(service)))
-	return service
+	return service, nil
 }

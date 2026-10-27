@@ -7,7 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	hawtiopluginv1 "github.com/hawtio/hawtio-operator/pkg/apis/hawtioplugin/v1"
-	resources "github.com/hawtio/hawtio-operator/pkg/resources/common"
+	commonres "github.com/hawtio/hawtio-operator/pkg/resources/common"
 	"github.com/hawtio/hawtio-operator/pkg/util"
 )
 
@@ -25,13 +25,20 @@ func NewDefaultServiceAccount(namespace string) *corev1.ServiceAccount {
 	}
 }
 
-func NewServiceAccount(namespace string, hawtioPlugin *hawtiopluginv1.HawtioPlugin, log logr.Logger) (*corev1.ServiceAccount, error) {
+func NewServiceAccount(namespace string, hawtioPlugin *hawtiopluginv1.HawtioPlugin, buildVariables util.BuildVariables, log logr.Logger) (*corev1.ServiceAccount, error) {
 	log.V(util.DebugLogLevel).Info("New service account")
 
-	labels := resources.LabelsForHawtio(hawtioPlugin.Name)
-	resources.PropagateLabels(hawtioPlugin, labels, log)
+	annotations := map[string]string{}
+	commonres.PropagateAnnotations(hawtioPlugin, annotations, log)
+
+	labels, err := ResourceLabels(hawtioPlugin.Name, buildVariables)
+	if err != nil {
+		return nil, err
+	}
+	commonres.PropagateLabels(hawtioPlugin, labels, log)
 
 	sa := NewDefaultServiceAccount(namespace)
+	sa.SetAnnotations(annotations)
 	sa.SetLabels(labels)
 	return sa, nil
 }

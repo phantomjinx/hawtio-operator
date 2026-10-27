@@ -32,7 +32,10 @@ func (r *ReconcileHawtioPlugin) reconcileGatewayService(ctx context.Context, haw
 		}
 
 		reqLogger := r.Logger.WithName(fmt.Sprintf("%s-reconcileService", hawtioPlugin.Name))
-		blueprint := gatewayres.NewService(hawtioPlugin, namespace, reqLogger)
+		blueprint, err := gatewayres.NewService(hawtioPlugin, namespace, r.BuildVariables, reqLogger)
+		if err != nil {
+			return err
+		}
 
 		serverBlueprint, err := commonctrl.HydrateDefaults(ctx, r.Client, blueprint, func(source, hydrated *corev1.Service) {
 			// If hydration stripped required fields, patch them directly back from source
@@ -109,7 +112,10 @@ func (r *ReconcileHawtioPlugin) reconcilePluginService(ctx context.Context, hawt
 		}
 
 		reqLogger := r.Logger.WithName(fmt.Sprintf("%s-reconcilePluginService", hawtioPlugin.Name))
-		blueprint := pluginres.NewService(hawtioPlugin, namespace, reqLogger)
+		blueprint, err := pluginres.NewService(hawtioPlugin, namespace, r.BuildVariables, reqLogger)
+		if err != nil {
+			return err
+		}
 
 		serverBlueprint, err := commonctrl.HydrateDefaults(ctx, r.Client, blueprint, func(source, hydrated *corev1.Service) {
 			// If hydration stripped required fields, patch them directly back from source
