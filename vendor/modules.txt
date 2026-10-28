@@ -192,6 +192,7 @@ github.com/openshift/api/config/v1alpha1
 github.com/openshift/api/config/v1alpha2
 github.com/openshift/api/console/v1
 github.com/openshift/api/oauth/v1
+github.com/openshift/api/operator/v1
 github.com/openshift/api/route/v1
 # github.com/openshift/client-go v0.0.0-20251015124057-db0dee36e235
 ## explicit; go 1.24.0

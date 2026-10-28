@@ -61,6 +61,17 @@
     resources: ["consolelinks", "consoleplugins", "consoleyamlsamples"]
     verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
 
+# Required for enabling the console plugin
+# Patches the specific cluster resource
+#
+- op: add
+  path: /rules/-
+  value:
+    apiGroups: ["operator.openshift.io"]
+    resources: ["consoles"]
+    verbs: ["get", "patch"]
+    resourceNames: ["cluster"]
+
 # Required for creating, modifying oauthclient
 # resources for authentication access
 #

@@ -13,6 +13,10 @@ spec:
         name: hawtio-operator
     spec:
       serviceAccountName: hawtio-operator
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: hawtio-operator
           image: quay.io/hawtio/operator
@@ -22,6 +26,11 @@ spec:
           command:
           - hawtio-operator
           imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
           env:
             - name: WATCH_NAMESPACES
               value: ""

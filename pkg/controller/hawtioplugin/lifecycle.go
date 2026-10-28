@@ -29,11 +29,12 @@ func (r *ReconcileHawtioPlugin) handleDeletion(ctx context.Context, hawtioPlugin
 
 	r.Logger.Info("HawtioPlugin deletion requested - performing cleanup")
 
-	// // Cleanup resources without owner references
-	// err := r.cleanupPluginResources(ctx, hawtioPlugin)
-	// if err != nil {
-	// 	return false, err
-	// }
+	//
+	// Ensure that the console plugin has been disabled
+	//
+	if err := r.disableConsolePlugin(ctx); err != nil {
+		return false, err
+	}
 
 	// Remove finalizer to allow deletion
 	if controllerutil.ContainsFinalizer(hawtioPlugin, hawtioPluginFinalizer) {
@@ -73,6 +74,13 @@ func (r *ReconcileHawtioPlugin) addFinalizer(ctx context.Context, hawtioPlugin *
 }
 
 func (r *ReconcileHawtioPlugin) removeInstall(ctx context.Context, hawtioPlugin *hawtiopluginv1.HawtioPlugin) error {
+	//
+	// Ensure that the console plugin has been disabled
+	//
+	if err := r.disableConsolePlugin(ctx); err != nil {
+		return err
+	}
+
 	// Target kinds provisioned by HawtioPlugin
 	targetLists := []client.ObjectList{
 		&corev1.ServiceList{},

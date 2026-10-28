@@ -17,6 +17,7 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/console/v1"
 	oauthv1 "github.com/openshift/api/oauth/v1"
+	operatorv1 "github.com/openshift/api/operator/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -73,6 +74,10 @@ func ConfigureScheme() (*runtime.Scheme, error) {
 		return nil, err
 	}
 	err = consolev1.Install(scheme)
+	if err != nil {
+		return nil, err
+	}
+	err = operatorv1.Install(scheme)
 	if err != nil {
 		return nil, err
 	}

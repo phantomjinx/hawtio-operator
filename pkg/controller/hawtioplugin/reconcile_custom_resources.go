@@ -5,9 +5,13 @@ import (
 	"fmt"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	osv1 "github.com/openshift/api/console/v1"
+	osopv1 "github.com/openshift/api/operator/v1"
 
 	hawtiov2 "github.com/hawtio/hawtio-operator/pkg/apis/hawtio/v2"
 	hawtiopluginv1 "github.com/hawtio/hawtio-operator/pkg/apis/hawtioplugin/v1"
@@ -16,10 +20,29 @@ import (
 	pluginres "github.com/hawtio/hawtio-operator/pkg/resources/hawtioplugin/plugin"
 
 	"github.com/hawtio/hawtio-operator/pkg/util"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // HawtioPluginName is the name of the single console-plugin
 const HawtioPluginName = "hawtio-console-plugin"
+
+//
+// Promtheus metric used to track console plugin enablement operations
+//
+var (
+	consolePluginEnablements = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "hawtio_console_plugin_enablements_total",
+			Help: "Total number of console plugin enablement operations",
+		},
+		[]string{"result"},
+	)
+)
+
+// Register the metric with controller-runtime's metrics registry
+func init() {
+	metrics.Registry.MustRegister(consolePluginEnablements)
+}
 
 func (r *ReconcileHawtioPlugin) reconcileHawtio(ctx context.Context) (bool, error) {
 	r.Logger.V(util.DebugLogLevel).Info("Querying Hawtio custom resources")
@@ -162,4 +185,75 @@ func (r *ReconcileHawtioPlugin) reconcileConsolePlugin(ctx context.Context, hawt
 
 	util.ReportResourceChange("Console Plugin", targetConsolePlugin, opResult)
 	return opResult, err
+}
+
+func (r *ReconcileHawtioPlugin) enableConsolePlugin(ctx context.Context) error {
+	console := &osopv1.Console{}
+	err := r.ApiReader.Get(ctx, types.NamespacedName{Name: "cluster"}, console)
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			r.Logger.Info("Console operator not found - skipping plugin enablement")
+			// Increment counter with "not_found" label
+			consolePluginEnablements.WithLabelValues("not_found").Inc()
+			return nil
+		}
+		// Increment counter with "error" label
+		consolePluginEnablements.WithLabelValues("error").Inc()
+		return fmt.Errorf("failed to get cluster console: %w", err)
+	}
+
+	// Check if plugin is already enabled
+	for _, plugin := range console.Spec.Plugins {
+		if plugin == pluginres.PluginName {
+			r.Logger.V(util.DebugLogLevel).Info("Hawtio Console Plugin already enabled")
+			// Increment counter with "already_enabled" label
+			consolePluginEnablements.WithLabelValues("already_enabled").Inc()
+			return nil
+		}
+	}
+
+	// Add hawtio plugin to the list
+	previous := console.DeepCopy()
+	console.Spec.Plugins = append(console.Spec.Plugins, pluginres.PluginName)
+
+	// Patch the Console resource
+	err = r.Client.Patch(ctx, console, client.MergeFrom(previous))
+	if err != nil {
+		// Increment counter with "error" label
+		consolePluginEnablements.WithLabelValues("error").Inc()
+		return fmt.Errorf("failed to enable console plugin: %w", err)
+	}
+
+	r.Logger.Info("Successfully enabled console plugin", "plugin", pluginres.PluginName)
+	// Increment counter with "success" label
+	consolePluginEnablements.WithLabelValues("success").Inc()
+	return nil
+}
+
+func (r *ReconcileHawtioPlugin) disableConsolePlugin(ctx context.Context) error {
+	console := &osopv1.Console{}
+	err := r.ApiReader.Get(ctx, types.NamespacedName{Name: "cluster"}, console)
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			return nil // Already gone
+		}
+		return err
+	}
+
+	// Remove plugin from the list
+	previous := console.DeepCopy()
+	newPlugins := []string{}
+	for _, plugin := range console.Spec.Plugins {
+		if plugin != pluginres.PluginName {
+			newPlugins = append(newPlugins, plugin)
+		}
+	}
+
+	if len(newPlugins) == len(console.Spec.Plugins) {
+		// Plugin wasn't in the list
+		return nil
+	}
+
+	console.Spec.Plugins = newPlugins
+	return r.Client.Patch(ctx, console, client.MergeFrom(previous))
 }

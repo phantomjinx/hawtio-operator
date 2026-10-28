@@ -342,6 +342,12 @@ func (r *ReconcileHawtioPlugin) Reconcile(ctx context.Context, request ctrl.Requ
 		return commonctrl.HandleResultAndError(err)
 	}
 
+	// Enable the plugin in the console
+	r.Logger.V(util.DebugLogLevel).Info("=== Enabling Hawtio Plugin in Console ===")
+	if err := r.enableConsolePlugin(ctx); err != nil {
+		return commonctrl.HandleResultAndError(err)
+	}
+
 	// =====================================================================
 	// PHASE 5: UPDATE PHASE
 	// =====================================================================
